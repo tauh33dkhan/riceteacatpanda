@@ -1,3 +1,4 @@
+`
 $ cat da_bomb.txt 
 SGFoLCB5b3UgdGhvdWdodA==
 UmVhbGx5PyBEaWQgeW91IGFjdHVhbGx5IGtlZXAgZ29pbmc=
@@ -7,7 +8,7 @@ bWVycA==
 Kmluc2VydCBmaWxsZXIgbWF0ZXJpYWwgaGVyZSo=
 d2VscCB0aGF0IHNob3VsZCBiZSBlbm91Z2ggZGF0YQ==
 aWYgeW91IGNhbid0IHRlbGwgYWxyZWFkeSwgZGVjb2RpbmcgdGhpcyBpc24ndCB0aGUgYW5zd2Vy
-
+`
 so we are provided with a file containing lines which looks like base64 encoded and actualy they are so let's decode
 them
 
