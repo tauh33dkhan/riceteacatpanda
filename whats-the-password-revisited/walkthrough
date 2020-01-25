@@ -53,7 +53,7 @@ Whats the password? test
 hit breakpoint at: 56398c0fe858
 `
 
-now let's look at the value in rax using following
+now let's look at the value in rax
 
 `
 > px @rax
