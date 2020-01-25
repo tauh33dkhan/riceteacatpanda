@@ -23,7 +23,7 @@ r2> afl
 0x556d2ff7f9c0    5 10   -> 124  entry1.init
 0x556d3017ffe0    1 1024         reloc.__libc_start_main
 
-and we get main funciton now we will disassabmle and view main funciton using following command
+and we get main funciton now we will disassabmle and view the main function using following command
 
 r2> pdf @main
 
