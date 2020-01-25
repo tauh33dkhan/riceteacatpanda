@@ -6,17 +6,32 @@ $ radare2 -dA whats-the-password
 then check list of function using following
 
 r2> afl
+0x556d2ff7f000    2 41           sym.imp.__libc_start_main
+0x556d2ff7f740    1 6            sym.imp.strncpy
+0x556d2ff7f750    1 6            sym.imp.puts
+0x556d2ff7f760    1 6            sym.imp.__stack_chk_fail
+0x556d2ff7f770    1 6            sym.imp.__fgets_chk
+0x556d2ff7f780    1 6            sym.imp.__strcpy_chk
+0x556d2ff7f790    1 6            sym.imp.__printf_chk
+0x556d2ff7f7a0    1 6            sym.imp.exit
+0x556d2ff7f7b0    1 6            sub.__cxa_finalize_7b0
+0x556d2ff7f7c0    7 253          main
+0x556d2ff7f8c0    1 43           entry0
+0x556d2ff7f8f0    4 50   -> 40   sub._ITM_deregisterTMCloneTable_8f0
+0x556d2ff7f930    4 66   -> 57   loc.556d2ff7f930
+0x556d2ff7f980    5 58   -> 51   entry2.fini
+0x556d2ff7f9c0    5 10   -> 124  entry1.init
+0x556d3017ffe0    1 1024         reloc.__libc_start_main
 
 and we get main funciton now we will disassabmle and view main funciton using following command
 
 r2> pdf @main
 
-after disassmbling we see following just before "Hey, that's not right!" error message printing
+after disassmbling we see the following assembly code just before "Hey, that's not right!" error message
 `
 0x559891b1e86b      39c1           cmp ecx, eax
 
 `
-
 here the program is comparing value in ecx with eax where eax is user supplied value.
 
 if we view few lines above, it is moving rax value in ecx
