@@ -3,7 +3,7 @@ First open the binary with radare2 using following command
 
 $ radare2 -dA whats-the-password
 
-then check list of function using following
+then check list of function
 
 r2> afl
 0x556d2ff7f000    2 41           sym.imp.__libc_start_main
