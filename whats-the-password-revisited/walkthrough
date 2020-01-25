@@ -1,0 +1,233 @@
+
+First open the binary with radare2 using following command
+
+$ radare2 -dA whats-the-password
+
+then check list of function using following
+
+r2> afl
+
+and we get main funciton now we will disassabmle and view main funciton using following command
+
+r2> pdf @main
+
+after disassmbling we see following just before "Hey, that's not right!" error message printing
+`
+0x559891b1e86b      39c1           cmp ecx, eax
+
+`
+
+here the program is comparing value in ecx with eax where eax is user supplied value.
+
+if we view few lines above, it is moving rax value in ecx
+
+`
+0x55e0d01ab858      0fbe08         movsx ecx, byte [rax]
+`
+
+so if we can set a breakpoint at this point we can access the value in rax which is password
+
+let's set the breakpoint 
+
+> db 0x55e0d01ab858
+
+and continue the execution
+`
+[0x7f6a7abaa090]> dc
+Whats the password? test
+hit breakpoint at: 56398c0fe858
+`
+
+now let's look at the value in rax using following
+
+`
+> px @rax
+- offset -       0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x55593096d020  3a00 0000 0000 0000 0000 0000 0000 0000  :...............
+0x55593096d030  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d040  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d050  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d060  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d070  3100 0000 0000 0000 0000 0000 0000 0000  1...............
+0x55593096d080  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d090  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d0a0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d0b0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d0c0  5200 0000 0000 0000 0000 0000 0000 0000  R...............
+0x55593096d0d0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d0e0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d0f0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d100  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x55593096d110  3000 0000 0000 0000 0000 0000 0000 0000  0...............
+``
+
+So we get password char which is '3a' before moving forward let's confirm this is right, so again look at the 
+disassmbled function 
+
+[0x56398c0fe858]> pdf @main
+
+`
+|     |:    0x55593076c85f      83f032         xor eax, 0x32
+|     |:    0x55593076c862      0fbec0         movsx eax, al
+|     |:    0x55593076c865      83c001         add eax, 1
+|     |:    0x55593076c868      83f032         xor eax, 0x32
+|     |:    0x55593076c86b      39c1           cmp ecx, eax
+`
+
+now we will reverse the process to get the value so read it from the bottom 
+
+at line 4 program is doing xor with our input password value so in python it will be
+
+byte ^ 0x32
+
+before this it is adding 1 at line 3 to reverse it we will substract 1
+
+(byte ^ 0x32) - 1 
+
+and again at line 1 it is doing xor with our input 
+
+((byte ^ 0x31) - 1) ^ 0x32
+
+after doing all this we need to convert the ascii to chr for this we will use chr
+
+chr(((byte ^ 0x32) - 1) ^ 0x32)
+let's make function for this
+
+def convert(byte):
+	return chr(((byte ^ 0x32) - 1) ^ 0x32)
+
+so the first password character we get from the rax is 0x3a let's convert it using this function and see if it works
+
+$ python
+>>> def convert(input):
+...     return chr(((input ^ 0x32) - 1) ^ 0x32)
+... 
+>>> convert(0x3a)
+'5'
+
+we get '5' now test if this works so restart the radare2 
+
+$ radare2 -dA whats-the-password-revisited 
+
+
+and set the breakpoint where it is comparing the value 
+`
+radare> pdf @main
+-snip-
+0x55b72144c86b      39c1           cmp ecx, eax
+-snip-
+[0x7ffb39a2f090]> db 0x55b72144c86d
+`
+after setting breakpoint continue the program execution with dc and when it asks for password enter 5 and hit enter
+
+`
+[0x7ffb39a2f090]> dc
+Whats the password? 5
+hit breakpoint at: 55b72144c86d
+`
+now we will look at the breakpoint to see where are we now
+`
+[0x55b72144c86d]> pdf @main
+|     |`==< 0x55b72144c86d b    74d1           je 0x55b72144c840
+`
+as you can see we have successfully guessed the first value as we jumping again to loop to match second value
+
+let's confirm this by checking the 'rax' and 'rcx' values where 'rax' is passowrd  and 'rcx' is our input value
+`
+[0x55b72144c86d]> dr 
+rax = 0x0000003a
+rbx = 0x7ffcd616ad70
+rcx = 0x0000003a
+`
+so both rax and rcx value matches which means we are succefull in reversing the rax so let's dump all the password 
+chrs
+
+now agaom restart the radare and set breakpoint at the point where rax value is being moved to ecx
+`
+[0x7faaccd55090]> pdf @main
+-- snip --
+    |:    0x56408d157858      0fbe08         movsx ecx, byte [rax] 
+-- snip --
+`
+Setting breakpoint
+
+[0x7faaccd55090]> db 0x56408d157858
+[0x7faaccd55090]> dc 
+Whats the password? givemepass
+hit breakpoint at: 56408d157858
+[0x56408d157858]> px @rax
+- offset -       0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x56408d358020  3a00 0000 0000 0000 0000 0000 0000 0000  :...............
+0x56408d358030  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358040  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358050  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358060  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358070  3100 0000 0000 0000 0000 0000 0000 0000  1...............
+0x56408d358080  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358090  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580a0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580b0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580c0  5200 0000 0000 0000 0000 0000 0000 0000  R...............
+0x56408d3580d0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580e0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580f0  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358100  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358110  3000 0000 0000 0000 0000 0000 0000 0000  0...............
+
+so we find out four values here 0x3a, 0x31, 0x52, 0x30 let's get more values
+
+[0x56408d157858]> px @rax + 100
+- offset -       0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x56408d358084  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358094  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580a4  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580b4  0000 0000 0000 0000 0000 0000 5200 0000  ............R...
+0x56408d3580c4  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580d4  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580e4  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580f4  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358104  0000 0000 0000 0000 0000 0000 3000 0000  ............0...
+0x56408d358114  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358124  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358134  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358144  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358154  0000 0000 0000 0000 0000 0000 3400 0000  ............4...
+0x56408d358164  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358174  0000 0000 0000 0000 0000 0000 0000 0000  ................
+
+we get one more here 0x34  let's increase 100 to 200
+
+[0x56408d157858]> px @rax +200
+- offset -       0 1  2 3  4 5  6 7  8 9  A B  C D  E F  0123456789ABCDEF
+0x56408d3580e8  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3580f8  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358108  0000 0000 0000 0000 3000 0000 0000 0000  ........0.......
+0x56408d358118  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358128  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358138  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358148  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358158  0000 0000 0000 0000 3400 0000 0000 0000  ........4.......
+0x56408d358168  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358178  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358188  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d358198  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3581a8  0000 0000 0000 0000 3600 0000 0000 0000  ........6.......
+0x56408d3581b8  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3581c8  0000 0000 0000 0000 0000 0000 0000 0000  ................
+0x56408d3581d8  0000 0000 0000 0000 0000 0000 0000 0000  ................
+
+and we get one more byte 0x36, to get more values keep increasing the value untill you get all bytes 
+
+0x3a,0x31,0x52,0x30,0x34,0x36,0x52,0x30,0x33,0x5c,0x3a,0x51,0x73,0x30,0x35,0x45,0x5c,0x31,0x5a,0x34
+
+now we need to convert them
+
+def convert(*bytes):
+     return ''.join([chr(((byte ^ 0x32) - 1) ^ 0x32) for byte in bytes])
+
+convert(0x3a,0x31,0x52,0x30,0x34,0x36,0x52,0x30,0x33,0x5c,0x3a,0x51,0x73,0x30,0x35,0x45,0x5c,0x31,0x5a,0x34)
+
+and we get the password
+50m371m32_5Pr34D_0U7
+
+## I solved this challenge after watching this video https://youtu.be/CeafPbxRG5I and did a walkthrough again 
